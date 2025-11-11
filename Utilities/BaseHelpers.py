@@ -53,19 +53,61 @@ class BaseHelper:
             print(error_msg)
             raise AssertionError(error_msg)
 
+    def search_user(self, username: str):
+        """
+        Search for a user by name using the search bar on the Admin Users page.
+        """
+        print(f"🔍 Searching for user '{username}' in search box...")
+
+        search_box = self.page.locator("#search-user-grid-records")
+
+        # Wait until it's visible
+        search_box.wait_for(state="visible", timeout=5000)
+
+        # Clear any existing value
+        search_box.fill("")
+
+        # Enter username
+        search_box.fill(username)
+
+        # Optional: press Enter or trigger blur (if required)
+        self.page.keyboard.press("Enter")
+
+        # Wait for results to update
+        self.page.wait_for_timeout(1500)
+        print(f"✅ Search completed for user '{username}'.")
+
     def scroll_to_label(self, locator, friendly_name: str = None, timeout: int = 5000):
-        """Scroll to a label element and confirm visibility."""
+        """
+        Scroll to any element and confirm it's visible on the page.
+
+        Args:
+            locator (str | Locator): XPath/CSS selector or Playwright locator.
+            friendly_name (str): Optional readable name for better console logs.
+            timeout (int): How long to wait for element visibility in ms.
+
+        Returns:
+            Locator: The visible locator object for further actions (click, type, etc.)
+        """
         try:
+            # Allow both string and Locator objects
             element = self.page.locator(locator) if isinstance(locator, str) else locator
+
+            # Wait for it to appear and be visible
             element.wait_for(state="visible", timeout=timeout)
+
+            # Scroll into view if needed
             element.scroll_into_view_if_needed()
-            label_text = friendly_name or element.inner_text().strip()
-            print(f"✅ Label visible — {label_text}")
+
+            # Print readable element info
+            label_text = friendly_name or element.inner_text(timeout=1000) or "Unnamed Element"
+            print(f"✅ Element visible — {label_text.strip()}")
+
             return element
 
         except Exception as e:
-            self.take_screenshot(f"LabelNotVisible_{friendly_name or 'Unknown'}")
-            error_msg = f"❌ Test failed — Label not visible: {friendly_name or locator}: {e}"
+            self.take_screenshot(f"ElementNotVisible_{friendly_name or 'Unknown'}")
+            error_msg = f"❌ Test failed — Element not visible or scroll failed: {friendly_name or locator}: {e}"
             print(error_msg)
             raise AssertionError(error_msg)
 

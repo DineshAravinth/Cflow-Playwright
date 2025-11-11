@@ -32,7 +32,7 @@ class Test_003_Admin_Add_User_Negative_cases:
 
         duplicate_login_id = "dinesh01"  # 🔁 Known duplicate
         admin.enter_login_id(duplicate_login_id)
-        admin.enter_password("Test@123")
+        admin.enter_password()
         admin.enter_employee_number("123466")
         admin.select_role(["User"])
         admin.enter_whatsapp_number(country_code="91", whatsapp_no="9988776655")
@@ -66,10 +66,10 @@ class Test_003_Admin_Add_User_Negative_cases:
         admin.enter_name("Existing_Employee")
         admin.enter_department("QA")
         admin.enter_email("existingemp@yopmail.com")
-        admin.enter_login_id("unique_login_id_0021")
-        admin.enter_password("Test@123")
+        admin.enter_login_id("unique_login_id_0022")
+        admin.enter_password()
 
-        duplicate_emp_no = "E01"  # 🔁 Known duplicate
+        duplicate_emp_no = "E02"  # 🔁 Known duplicate
         admin.enter_employee_number(duplicate_emp_no)
         admin.select_role(["User"])
         admin.enter_whatsapp_number(country_code="91", whatsapp_no="9988776655")

@@ -1,5 +1,5 @@
 from playwright.sync_api import Page
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError  # ✅ correct import
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 import random
 import string
 import re
@@ -32,6 +32,7 @@ class Admin_Add_User:
         self.country_code_input = page.locator('//div[contains(@class, "d-flex")]/input[@placeholder="+91"]')
         self.whatsapp_input = page.locator('//div[contains(@class, "d-flex")]/input[@formcontrolname="whatsappNo"]')
         self.radio_btn_all_users = page.locator('//label[.//span[normalize-space()="All Users"]]')
+        self.radio_btn_active_users = page.locator('//label[.//span[normalize-space()="Active Users"]]')
         self.toast_message = page.locator("//div[contains(@id,'toast-container')]")
 
     # ---------------- Random helpers ----------------
@@ -216,55 +217,9 @@ class Admin_Add_User:
         """Clicks the 'All Users' radio button."""
         self.radio_btn_all_users.click(force=True)
 
-    def verify_duplicate_login_toast(self, expected_message: str):
-        """
-        Click Save and check if expected duplicate toast appears.
-        Takes screenshot if toast does not appear or message mismatch.
-        """
-
-        self.helper.click(self.btn_save, "Save button")
-
-        toast_locator = self.page.locator("#toast-container div, #toast-container span")
-        try:
-            toast_locator.first.wait_for(state="visible", timeout=5000)
-            message = toast_locator.first.inner_text().strip()
-            print(f"⚠️ Toast message detected: {message}")
-
-            if expected_message.lower() not in message.lower():
-                # Take screenshot if message is not as expected
-                self.helper.take_screenshot(prefix="DuplicateToastMismatch")
-                pytest.fail(f"Expected message '{expected_message}', but got: '{message}'")
-
-            print("✅ Negative test passed: Toast message displayed correctly")
-            return True
-
-        except PlaywrightTimeoutError:
-            # Take screenshot if toast did not appear
-            self.helper.take_screenshot(prefix="ToastNotFound")
-            pytest.fail(f"❌ Expected toast message '{expected_message}' did not appear")
-
-    def verify_duplicate_emp_toast(self):
-        """
-        Click Save and verify 'Employee No Already Exist' toast appears.
-        Takes screenshot if toast does not appear or message mismatch.
-        """
-        self.helper.click(self.btn_save, "Save button")
-
-        toast_locator = self.page.locator("#toast-container div, #toast-container span")
-        try:
-            toast_locator.first.wait_for(state="visible", timeout=5000)
-            message = toast_locator.first.inner_text().strip()
-            print(f"⚠️ Toast message detected: {message}")
-
-            if "Employee No Already Exist" not in message:
-                self.helper.take_screenshot(prefix="DuplicateEmpToastMismatch")
-                pytest.fail(f"Expected duplicate employee number message, but got: '{message}'")
-
-            print("✅ Negative test passed: Duplicate Employee Number message displayed correctly")
-
-        except PlaywrightTimeoutError:
-            self.helper.take_screenshot(prefix="DuplicateEmpToastNotFound")
-            pytest.fail("❌ Expected duplicate Employee Number toast did not appear")
+    def click_active_users_radio(self):
+        """Clicks the 'Active Users' radio button."""
+        self.radio_btn_active_users.click(force=True)
 
     # ---------------------------------------------------------------
     # User Verification
@@ -336,113 +291,173 @@ class Admin_Add_User:
             print(error_msg)
             raise AssertionError(error_msg)
 
+    def enable_user_toggle(self, username: str, description: str = "'User Status Toggle'", timeout: int = 10000):
+        """
+        Enable a disabled user's toggle (make them Active) and verify it.
+        Searches the user first to ensure visibility.
+        """
+        print(f"🟢 Enabling user status toggle for '{username}' under {description}...")
 
-    #Genreate valid password based on visible rules
-    def get_unmet_password_rules(self) -> list[str]:
-        """
-        Reads the password validation container and returns
-        a list of visible password rules that are still unmet.
-        """
-        rules: Locator = self.page.locator("cf-password-policy-validate .password-validation ul li")
-        unmet_rules: list[str] = []
+        try:
+            # Step 1️⃣: Search for the user
+            print(f"🔍 Searching for user '{username}' before enabling toggle...")
+            search_box = self.page.locator("#search-user-grid-records")
+            search_box.wait_for(state="visible", timeout=5000)
+            search_box.fill("")  # clear old value
+            search_box.fill(username)  # type username
+            self.page.keyboard.press("Enter")  # trigger search
+            self.page.wait_for_timeout(1500)  # wait for list refresh
+            print(f"✅ User '{username}' search completed.")
 
-        count = rules.count()
-        for i in range(count):
-            rule = rules.nth(i)
-            if rule.is_visible():
-                unmet_rules.append(rule.inner_text().strip())
-        return unmet_rules
+            # Step 2️⃣: Locate the visible toggle (span)
+            toggle_slider = self.page.locator(
+                f'//p[normalize-space()="{username}"]/ancestor::div[contains(@class,"admin-grid-item")]'
+                f'//label[@class="switch"]/span[@class="slider"]'
+            )
 
-    @staticmethod
-    def get_password_length_limits(unmet_rules: list[str]) -> tuple[int, int]:
-        """
-        Parses minimum and maximum length dynamically from rule text.
-        Returns (min_length, max_length)
-        """
-        min_len = 8
-        max_len = 19
-        for rule in unmet_rules:
-            rule_lower = rule.lower()
-            if "at least" in rule_lower:
-                min_len = max(min_len, int(''.join(filter(str.isdigit, rule))))
-            elif "less than" in rule_lower:
-                max_len = min(max_len, int(''.join(filter(str.isdigit, rule))) - 1)
-        return min_len, max_len
+            toggle_checkbox = self.page.locator(
+                f'//p[normalize-space()="{username}"]/ancestor::div[contains(@class,"admin-grid-item")]'
+                f'//input[@aria-label="User Status"]'
+            )
 
-    @staticmethod
-    def add_char_for_rule(unmet_rules: list[str]) -> str:
-        """
-        Returns a single character that satisfies one of the unmet rules.
-        """
-        for rule in unmet_rules:
-            rule_lower = rule.lower()
-            if "number" in rule_lower:
-                return random.choice(string.digits)
-            if "uppercase" in rule_lower:
-                return random.choice(string.ascii_uppercase)
-            if "alphabet" in rule_lower:
-                return random.choice(string.ascii_lowercase)
-            if "special" in rule_lower:
-                return random.choice("!@#$%^&*")
-            if "at least" in rule_lower or "less than" in rule_lower:
-                return random.choice(string.ascii_letters + string.digits + "!@#$%^&*")
-        # fallback
-        return random.choice(string.ascii_letters + string.digits)
+            toggle_slider.wait_for(state="visible", timeout=timeout)
 
-    def generate_valid_password(self) -> str:
+            # Step 3️⃣: Scroll into view
+            try:
+                self.helper.scroll_to_label(toggle_slider, friendly_name=f"{username} Toggle")
+            except Exception as e:
+                print(f"⚠ Scroll attempt failed or element already in view: {e}")
+
+            # Step 4️⃣: Verify current state via checkbox
+            is_checked = toggle_checkbox.is_checked()
+            if is_checked:
+                print(f"ℹ User '{username}' toggle is already enabled.")
+                return "Already Enabled"
+
+            # Step 5️⃣: Click the visible slider
+            toggle_slider.click(force=True)
+            print(f"🖱 Clicked visible toggle (slider) for '{username}'...")
+
+            # ✅ Step 6️⃣: Handle the confirmation popup (Yes button)
+            yes_button = self.page.locator(
+                '//div[contains(@class,"war-pop-footer")]//button[contains(@class,"button-danger") and normalize-space(text())="Yes"]'
+            )
+
+            try:
+                yes_button.wait_for(state="visible", timeout=5000)
+                yes_button.scroll_into_view_if_needed()
+                yes_button.click()
+                print("🆗 Clicked 'Yes' button on confirmation popup.")
+            except Exception:
+                print("⚠ No confirmation popup detected, continuing...")
+
+            # Wait a moment for UI update
+            self.page.wait_for_timeout(1500)
+
+            # Step 7️⃣: Confirm it’s enabled
+            if toggle_checkbox.is_checked():
+                print(f"✅ User '{username}' successfully enabled (toggle ON).")
+                return "Enabled"
+            else:
+                self.helper.take_screenshot(f"EnableToggleFailed_{username}")
+                error_msg = f"❌ User '{username}' toggle did not enable properly."
+                print(error_msg)
+                raise AssertionError(error_msg)
+
+        except Exception as e:
+            self.helper.take_screenshot(f"EnableToggleFailed_{username}")
+            error_msg = f"❌ Test failed while enabling toggle for '{username}': {e}"
+            print(error_msg)
+            raise AssertionError(error_msg)
+
+    def verify_user_in_active_list(self, username: str, timeout: int = 10000):
         """
-        Dynamically generates a valid password that satisfies all visible rules
-        and types it into the password field automatically.
+        Switches to Active Users tab and verifies that the user appears there.
         """
-        password: str = ""
+        print(f"👁️  Checking if '{username}' appears in Active Users list...")
+        self.click_active_users_radio()
+        self.page.wait_for_timeout(2000)
+
+        user_locator = self.page.locator(f'//p[normalize-space()="{username}"]')
+        try:
+            user_locator.wait_for(state="visible", timeout=timeout)
+            print(f"✅ User '{username}' is displayed in Active Users list.")
+            return True
+        except:
+            self.helper.take_screenshot(f"UserNotFoundInActive_{username}")
+            raise AssertionError(f"❌ User '{username}' not found in Active Users list.")
+
+
+    def verify_duplicate_login_toast(self, expected_message: str):
+        """
+        Click Save and check if expected duplicate toast appears.
+        Takes screenshot if toast does not appear or message mismatch.
+        """
+
+        self.helper.click(self.btn_save, "Save button")
+
+        toast_locator = self.page.locator("#toast-container div, #toast-container span")
+        try:
+            toast_locator.first.wait_for(state="visible", timeout=5000)
+            message = toast_locator.first.inner_text().strip()
+            print(f"⚠️ Toast message detected: {message}")
+
+            if expected_message.lower() not in message.lower():
+                # Take screenshot if message is not as expected
+                self.helper.take_screenshot(prefix="DuplicateToastMismatch")
+                pytest.fail(f"Expected message '{expected_message}', but got: '{message}'")
+
+            print("✅ Negative test passed: Toast message displayed correctly")
+            return True
+
+        except PlaywrightTimeoutError:
+            # Take screenshot if toast did not appear
+            self.helper.take_screenshot(prefix="ToastNotFound")
+            pytest.fail(f"❌ Expected toast message '{expected_message}' did not appear")
+
+    def verify_duplicate_emp_toast(self):
+        """
+        Click Save and verify 'Employee No Already Exist' toast appears.
+        Takes screenshot if toast does not appear or message mismatch.
+        """
+        self.helper.click(self.btn_save, "Save button")
+
+        toast_locator = self.page.locator("#toast-container div, #toast-container span")
+        try:
+            toast_locator.first.wait_for(state="visible", timeout=5000)
+            message = toast_locator.first.inner_text().strip()
+            print(f"⚠️ Toast message detected: {message}")
+
+            if "Employee No Already Exist" not in message:
+                self.helper.take_screenshot(prefix="DuplicateEmpToastMismatch")
+                pytest.fail(f"Expected duplicate employee number message, but got: '{message}'")
+
+            print("✅ Negative test passed: Duplicate Employee Number message displayed correctly")
+
+        except PlaywrightTimeoutError:
+            self.helper.take_screenshot(prefix="DuplicateEmpToastNotFound")
+            pytest.fail("❌ Expected duplicate Employee Number toast did not appear")
+
+    # ---------------- Password Helpers ----------------
+    def get_visible_password_rules(self) -> list[str]:
+        """
+        Type a temporary character to trigger validation container and
+        return all currently visible password rules.
+        """
         field = self.txt_password
-
-        while True:
-            unmet_rules = self.get_unmet_password_rules()
-            if not unmet_rules:
-                break  # All rules satisfied
-
-            min_len, max_len = self.get_password_length_limits(unmet_rules)
-            if len(password) >= max_len:
-                break
-
-            new_char = self.add_char_for_rule(unmet_rules)
-            password += new_char
-            field.fill(password)
-            time.sleep(0.2)
-
-        # Ensure minimum length
-        unmet_rules = self.get_unmet_password_rules()
-        min_len, _ = self.get_password_length_limits(unmet_rules)
-        while len(password) < min_len:
-            password += random.choice(string.ascii_letters + string.digits + "!@#$%^&*")
-            field.fill(password)
-            time.sleep(0.1)
-
-        print(f"🔑 Generated valid password: {password}")
-        return password
-
-    def print_visible_password_validations(self) -> None:
-        """
-        Prints all currently visible password validations.
-        Types a temporary character to trigger the container if hidden.
-        """
-        field = self.txt_password
-
-        # Type a temporary character to make validation container appear
-        field.fill("a")
+        field.fill("a")  # Trigger password validation container
         self.page.wait_for_timeout(200)  # wait for DOM update
 
-        rules = self.page.locator("cf-password-policy-validate .password-validation ul li")
+        rules_locator: Locator = self.page.locator("cf-password-policy-validate .password-validation ul li")
         visible_rules: list[str] = []
 
-        for i in range(rules.count()):
-            rule = rules.nth(i)
+        count = rules_locator.count()
+        for i in range(count):
+            rule = rules_locator.nth(i)
             if rule.is_visible():
                 visible_rules.append(rule.inner_text().strip())
 
-        # Optional: clear the temporary character
-        field.fill("")
+        field.fill("")  # Optional: clear temporary character
 
         if visible_rules:
             print("🔍 Visible password validations:")
@@ -451,10 +466,97 @@ class Admin_Add_User:
         else:
             print("✅ No visible password validations.")
 
+        return visible_rules
+
+    @staticmethod
+    def parse_length_limits(rules: list[str]) -> tuple[int, int]:
+        """
+        Parse minimum and maximum length dynamically from visible rules.
+        """
+        min_len = 8
+        max_len = 20
+        for rule in rules:
+            r_lower = rule.lower()
+            if "at least" in r_lower:
+                min_len = max(min_len, int(''.join(filter(str.isdigit, rule))))
+            elif "less than" in r_lower:
+                max_len = min(max_len, int(''.join(filter(str.isdigit, rule))) - 1)
+        return min_len, max_len
+
+    @staticmethod
+    def add_char_for_rule(rules: list[str]) -> str:
+        """
+        Returns a single character that satisfies one of the unmet rules.
+        """
+        for rule in rules:
+            r_lower = rule.lower()
+            if "number" in r_lower:
+                return random.choice(string.digits)
+            if "uppercase" in r_lower:
+                return random.choice(string.ascii_uppercase)
+            if "alphabet" in r_lower:
+                return random.choice(string.ascii_lowercase)
+            if "special" in r_lower:
+                return random.choice("!@#$%^&*")
+            if "at least" in r_lower or "less than" in r_lower:
+                return random.choice(string.ascii_letters + string.digits + "!@#$%^&*")
+        # fallback
+        return random.choice(string.ascii_letters + string.digits + "!@#$%^&*")
+
+    def _rule_satisfied(self, rule: str, password: str) -> bool:
+        """
+        Checks if a password satisfies a single rule.
+        """
+        r_lower = rule.lower()
+        if "number" in r_lower:
+            return any(c.isdigit() for c in password)
+        if "uppercase" in r_lower:
+            return any(c.isupper() for c in password)
+        if "alphabet" in r_lower:
+            return any(c.islower() for c in password)
+        if "special" in r_lower:
+            return any(c in "!@#$%^&*" for c in password)
+        if "at least" in r_lower:
+            min_len = int(''.join(filter(str.isdigit, rule)))
+            return len(password) >= min_len
+        if "less than" in r_lower:
+            max_len = int(''.join(filter(str.isdigit, rule))) - 1
+            return len(password) <= max_len
+        return True  # fallback
+
+    def generate_valid_password(self) -> str:
+        """
+        Generate a valid password based on the currently visible rules.
+        Prints rules and the generated password.
+        """
+        password = ""
+        field = self.txt_password
+        visible_rules = self.get_visible_password_rules()
+        min_len, max_len = self.parse_length_limits(visible_rules)
+
+        # Keep adding characters to satisfy unmet rules
+        while True:
+            unmet_rules = [rule for rule in visible_rules if not self._rule_satisfied(rule, password)]
+            if not unmet_rules:
+                break
+            if len(password) >= max_len:
+                break
+            password += self.add_char_for_rule(unmet_rules)
+            field.fill(password)
+            time.sleep(0.1)
+
+        # Ensure minimum length
+        while len(password) < min_len:
+            password += random.choice(string.ascii_letters + string.digits + "!@#$%^&*")
+            field.fill(password)
+            time.sleep(0.05)
+
+        print(f"🔑 Generated valid password: {password}")
+        return password
+
     def enter_password(self, password: str | None = None) -> str:
         """
-        Enters the password. If no password is provided,
-        dynamically generates a valid one based on visible rules.
+        Enters the password. If not provided, dynamically generates a valid one.
         """
         if not password:
             password = self.generate_valid_password()
@@ -495,51 +597,41 @@ class Admin_Add_User:
         for idx, rule in enumerate(visible_rules, start=1):
             print(f"   {idx}. {rule}")
 
-        # Determine min and max from current rules (re-use your existing parser)
-        min_len, max_len = self.get_password_length_limits(visible_rules)
-        # Note: get_password_length_limits returns max_len as allowed maximum (e.g., 19 for "less than 20")
+        # Determine min and max from current rules
+        min_len, max_len = Admin_Add_User.parse_length_limits(visible_rules)
 
         for rule in visible_rules:
             rule_lower = rule.lower()
             invalid_pwd = ""
 
             if "at least" in rule_lower:
-                # Make strictly shorter than min -> length = min_len - 1 (but >=1)
                 target_len = max(1, min_len - 1)
                 invalid_pwd = ''.join(random.choices(string.ascii_letters + string.digits + "!@#$%^&*", k=target_len))
 
             elif "less than" in rule_lower:
-                # For "less than M", allowed max is (M - 1). Make invalid by using length = allowed_max + 1
-                # If get_password_length_limits returned max_len (allowed max), choose length = max_len + 1
                 target_len = max_len + 3
                 invalid_pwd = ''.join(random.choices(string.ascii_letters + string.digits + "!@#$%^&*", k=target_len))
 
             elif "number" in rule_lower:
-                # produce password with NO digits, but at least min_len
                 target_len = max(min_len, 8)
                 invalid_pwd = ''.join(random.choices(string.ascii_letters + "!@#$%^&*", k=target_len))
 
             elif "uppercase" in rule_lower:
-                # produce password with NO uppercase, but at least min_len
                 target_len = max(min_len, 8)
                 invalid_pwd = ''.join(random.choices(string.ascii_lowercase + string.digits + "!@#$%^&*", k=target_len))
 
             elif "alphabet" in rule_lower:
-                # produce password with NO alphabet (only digits + special), at least min_len
                 target_len = max(min_len, 8)
                 invalid_pwd = ''.join(random.choices(string.digits + "!@#$%^&*", k=target_len))
 
             elif "special" in rule_lower:
-                # produce password with NO special chars, at least min_len
                 target_len = max(min_len, 8)
                 invalid_pwd = ''.join(random.choices(string.ascii_letters + string.digits, k=target_len))
 
             else:
-                # fallback: too short
                 target_len = max(1, min_len - 1)
                 invalid_pwd = ''.join(random.choices(string.ascii_letters + string.digits + "!@#$%^&*", k=target_len))
 
-            # Debug print with length info
             print(f"   -> Rule: '{rule}' -> invalid password length: {len(invalid_pwd)} -> pwd: {invalid_pwd}")
             invalid_passwords.append((rule, invalid_pwd))
 
@@ -571,29 +663,44 @@ class Admin_Add_User:
 
             # Click Save
             self.helper.click(self.btn_save, "Save button")
-
-            # Allow DOM update or toast to appear
             self.page.wait_for_timeout(2000)
 
             try:
                 if self.btn_save.is_visible():
                     print(f"✅ Negative case passed — Save button still visible for rule: '{rule}'")
                 else:
-                    # ❌ The invalid password was accepted — this should fail the test
-                    print(f"❌ Save button disappeared — invalid password '{bad_pwd}' was accepted! (rule: {rule})")
                     screenshot_name = f"InvalidPassword_{re.sub(r'[^0-9a-zA-Z]+', '_', rule)[:30]}"
                     self.helper.take_screenshot(screenshot_name)
                     pytest.fail(f"❌ Invalid password accepted for rule '{rule}'. Screenshot: {screenshot_name}",
                                 pytrace=False)
 
-            except Exception as e:
-                # ⚠️ Error while checking visibility
-                print(f"⚠️ Error checking Save button visibility for rule '{rule}': {e}")
+            except Exception as _:
                 screenshot_name = f"CheckSaveVisibleError_{re.sub(r'[^0-9a-zA-Z]+', '_', rule)[:30]}"
                 self.helper.take_screenshot(screenshot_name)
                 pytest.fail(
                     f"⚠️ Exception while verifying Save button for rule '{rule}'. Screenshot: {screenshot_name}",
                     pytrace=False)
 
-            # Small pause before next iteration
             self.page.wait_for_timeout(1000)
+
+    @staticmethod
+    def _rule_satisfied(rule: str, password: str) -> bool:
+        """
+        Checks if a password satisfies a single rule.
+        """
+        r_lower = rule.lower()
+        if "number" in r_lower:
+            return any(c.isdigit() for c in password)
+        if "uppercase" in r_lower:
+            return any(c.isupper() for c in password)
+        if "alphabet" in r_lower:
+            return any(c.islower() for c in password)
+        if "special" in r_lower:
+            return any(c in "!@#$%^&*" for c in password)
+        if "at least" in r_lower:
+            min_len = int(''.join(filter(str.isdigit, rule)))
+            return len(password) >= min_len
+        if "less than" in r_lower:
+            max_len = int(''.join(filter(str.isdigit, rule))) - 1
+            return len(password) <= max_len
+        return True
