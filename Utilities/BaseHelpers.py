@@ -53,29 +53,6 @@ class BaseHelper:
             print(error_msg)
             raise AssertionError(error_msg)
 
-    def search_user(self, username: str):
-        """
-        Search for a user by name using the search bar on the Admin Users page.
-        """
-        print(f"🔍 Searching for user '{username}' in search box...")
-
-        search_box = self.page.locator("#search-user-grid-records")
-
-        # Wait until it's visible
-        search_box.wait_for(state="visible", timeout=5000)
-
-        # Clear any existing value
-        search_box.fill("")
-
-        # Enter username
-        search_box.fill(username)
-
-        # Optional: press Enter or trigger blur (if required)
-        self.page.keyboard.press("Enter")
-
-        # Wait for results to update
-        self.page.wait_for_timeout(1500)
-        print(f"✅ Search completed for user '{username}'.")
 
     def scroll_to_label(self, locator, friendly_name: str = None, timeout: int = 5000):
         """

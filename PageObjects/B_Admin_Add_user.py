@@ -34,6 +34,12 @@ class Admin_Add_User:
         self.radio_btn_all_users = page.locator('//label[.//span[normalize-space()="All Users"]]')
         self.radio_btn_active_users = page.locator('//label[.//span[normalize-space()="Active Users"]]')
         self.toast_message = page.locator("//div[contains(@id,'toast-container')]")
+        self.reset_password_link = page.locator("//a[contains(@class, 'footer-icon') and contains(@class, 'txt-primary')]")
+        self.new_password_input = page.locator(
+            '//label[normalize-space(text())="New Password"]/following-sibling::input[@type="password"]'
+        )
+        self.btn_update = page.locator(
+            "//button[@type='button' and contains(@class, 'button-primary') and normalize-space()='Update']")
 
     # ---------------- Random helpers ----------------
     @staticmethod
@@ -168,6 +174,15 @@ class Admin_Add_User:
         else:
             print("❌ Failed to disable 'Status' toggle")
 
+    def click_reset_password(self):
+        """
+        Clicks the reset password icon/link in the Admin page.
+        """
+        self.helper.click(
+            self.reset_password_link,
+            "Reset Password icon/link"
+        )
+
     def click_save(self):
         """
         Clicks the Save button and validates if a toast appears.
@@ -220,6 +235,21 @@ class Admin_Add_User:
     def click_active_users_radio(self):
         """Clicks the 'Active Users' radio button."""
         self.radio_btn_active_users.click(force=True)
+
+    def click_update(self):
+        """
+        Clicks the 'Update' button in the Reset Password dialog or section.
+        """
+        print("🖱️ Clicking the 'Update' button...")
+        try:
+            self.btn_update.wait_for(state="visible", timeout=5000)
+            self.helper.click(self.btn_update, "Update button")
+            print("✅ Clicked the 'Update' button successfully.")
+        except Exception as e:
+            self.helper.take_screenshot("ClickUpdateFailed")
+            error_msg = f"❌ Failed to click 'Update' button: {e}"
+            print(error_msg)
+            raise AssertionError(error_msg)
 
     # ---------------------------------------------------------------
     # User Verification
@@ -438,6 +468,53 @@ class Admin_Add_User:
             self.helper.take_screenshot(prefix="DuplicateEmpToastNotFound")
             pytest.fail("❌ Expected duplicate Employee Number toast did not appear")
 
+    def search_user(self, username: str, timeout: int = 5000):
+        """
+        Searches for a user in the user grid.
+        """
+        print(f"🔍 Searching for user '{username}'...")
+        search_box = self.page.locator("#search-user-grid-records")
+        search_box.wait_for(state="visible", timeout=timeout)
+        search_box.fill("")  # clear old value
+        search_box.fill(username)  # type username
+        self.page.keyboard.press("Enter")  # trigger search
+        self.page.wait_for_timeout(1500)  # wait for list refresh
+        print(f"✅ User '{username}' search completed.")
+
+    def click_user_in_all_users(self, username: str, description: str = "'All Users list'", timeout: int = 10000):
+        """
+        Clicks on a specific user in the 'All Users' list.
+        """
+        try:
+            user_locator = self.page.locator(
+                f'//div[contains(@class,"admin-grid-item")]//p[normalize-space(text())="{username}"]'
+            )
+            user_locator.wait_for(state="visible", timeout=timeout)
+            user_locator.click()
+            print(f"✅ Clicked on user '{username}' in {description}.")
+        except Exception as e:
+            self.helper.take_screenshot(f"ClickUserFailed_{username}")
+            error_msg = f"❌ Failed to click user '{username}' in {description}: {e}"
+            print(error_msg)
+            raise AssertionError(error_msg)
+
+    def enter_new_password(self, password: str, timeout: int = 5000):
+        """
+        Fills the 'New Password' field in the reset password form.
+        """
+        try:
+            password_input = self.page.locator(
+                '//label[normalize-space(text())="New Password"]/following-sibling::input[@type="password"]'
+            )
+            password_input.wait_for(state="visible", timeout=timeout)
+            password_input.fill(password)
+            print(f"✅ Entered new password in the reset form.")
+        except Exception as e:
+            self.helper.take_screenshot("EnterNewPasswordFailed")
+            error_msg = f"❌ Failed to enter new password: {e}"
+            print(error_msg)
+            raise AssertionError(error_msg)
+
     # ---------------- Password Helpers ----------------
     def get_visible_password_rules(self) -> list[str]:
         """
@@ -556,13 +633,138 @@ class Admin_Add_User:
 
     def enter_password(self, password: str | None = None) -> str:
         """
-        Enters the password. If not provided, dynamically generates a valid one.
+        Enters the password. If not provided, dynamically generates a valid one
+        based on visible validation rules. Returns the final password for reuse.
         """
         if not password:
             password = self.generate_valid_password()
+            # Fill it into the field as well
+            self.helper.enter_text(self.txt_password, password, "Password textbox")
         else:
             self.helper.enter_text(self.txt_password, password, "Password textbox")
+
         return password
+
+    def enter_new_password(self, password: str):
+        """
+        Enters a new password into the 'New Password' field
+        in the Reset Password popup or section.
+        """
+        try:
+            # Locator for the 'New Password' field
+            new_password_field = self.page.locator(
+                "//input[@type='password' and @name='reset=password-user']"
+            )
+
+            new_password_field.wait_for(state="visible", timeout=5000)
+            self.helper.enter_text(new_password_field, password, "Reset Password field")
+        except Exception as e:
+            self.helper.take_screenshot("EnterNewPasswordFailed")
+            error_msg = f"❌ Failed to enter new password: {e}"
+            print(error_msg)
+            raise AssertionError(error_msg)
+
+    def reset_password_with_policy_check(self, old_password: str | None = None) -> str:
+        """
+        Resets user password with policy validation:
+          1️⃣ Click reset password link
+          2️⃣ Try old password (expected to fail with policy toast)
+          3️⃣ Generate and enter a new valid password
+          4️⃣ Click Update and verify success
+
+        Returns the new valid password.
+        """
+        print("\n🔁 Starting Reset Password Validation Flow...\n")
+
+        # --- Step 0️⃣: Resolve old password ---
+        if not old_password:
+            if hasattr(self, "current_password") and self.current_password:
+                old_password = self.current_password
+                print(f"ℹ️ Using stored old password: {old_password}")
+            else:
+                raise ValueError("❌ No old password available. Pass one or set self.current_password before calling.")
+
+        # --- Step 1️⃣: Click 'Reset Password' link ---
+        self.click_reset_password()
+
+        # --- Step 2️⃣: Enter same old password (expected to fail) ---
+        print(f"🧪 Attempting to reset using old password: {old_password}")
+        self.enter_new_password(old_password)
+        self.helper.click(self.btn_update, "Update button (old password attempt)")
+
+        # --- Step 3️⃣: Expect 'not met password policy' toast ---
+        toast_locator = self.page.locator("#toast-container div, #toast-container span")
+        try:
+            toast_locator.first.wait_for(state="visible", timeout=5000)
+            message = toast_locator.first.inner_text().strip()
+            print(f"⚠️ Toast message detected: {message}")
+
+            if "not met" in message.lower() or "policy" in message.lower():
+                print("✅ Policy validation triggered correctly — old password rejected.")
+            else:
+                self.helper.take_screenshot("UnexpectedToast_ResetPassword")
+                pytest.fail(f"❌ Unexpected toast message: '{message}'", pytrace=False)
+
+        except PlaywrightTimeoutError:
+            self.helper.take_screenshot("NoToast_ResetPassword")
+            pytest.fail("❌ No toast message appeared after entering old password.", pytrace=False)
+
+        # --- Step 4️⃣: Generate new valid password ---
+        print("\n🔑 Generating a new valid password according to policy...")
+        new_password = self.generate_valid_password()
+        print(f"🧩 Retrying with valid password: {new_password}")
+
+        self.enter_new_password(new_password)
+
+        # Wait for policy validation to pass (no invalid rules visible)
+        try:
+            self.page.locator("//li[contains(@class, 'invalid_Password')]").wait_for(state="hidden", timeout=5000)
+            print("✅ Password validation rules cleared — proceeding to update.")
+        except PlaywrightTimeoutError:
+            print("⚠️ Some password rules still visible, continuing with update anyway.")
+
+        # --- Step 5️⃣: Click Update and verify result ---
+        self.helper.click(self.btn_update, "Update button (valid password)")
+        self.page.wait_for_timeout(2000)  # short wait to allow toast to appear
+
+        try:
+            toast_locator.first.wait_for(state="visible", timeout=5000)
+            message = toast_locator.first.inner_text().strip()
+            print(f"📩 Toast after valid password: {message}")
+
+            success_patterns = [
+                "password updated successfully",
+                "password has been updated",
+                "password changed successfully",
+            ]
+            failure_patterns = [
+                "password not met",
+                "invalid password",
+                "failed",
+                "error",
+            ]
+
+            if any(p in message.lower() for p in success_patterns):
+                print("✅ Password updated successfully.")
+            elif any(p in message.lower() for p in failure_patterns):
+                self.helper.take_screenshot("PasswordUpdateFailed")
+                pytest.fail(f"❌ Password update failed — '{message}'", pytrace=False)
+            else:
+                self.helper.take_screenshot("UnexpectedToastMessage")
+                pytest.fail(f"⚠️ Unexpected toast message: '{message}'", pytrace=False)
+
+        except PlaywrightTimeoutError:
+            if self.btn_update.is_visible():
+                self.helper.take_screenshot("UpdateStillVisible_AfterValidPassword")
+                pytest.fail("❌ Update button still visible — password update likely failed.", pytrace=False)
+            else:
+                print("✅ No toast appeared but Update button hidden — assuming success.")
+
+        # --- Step 6️⃣: Store new password for reuse ---
+        self.current_password = new_password
+        print(f"🔁 Password reset successful. Stored new password: {new_password}")
+
+        return new_password
 
     # ---------------------------------------------------------------
     # 🔒 Invalid Password Generation & Negative Testing

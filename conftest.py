@@ -59,7 +59,7 @@ def browser_page(request):
     else:
         raise ValueError(f"Unsupported browser: {browser_name}")
 
-    context = browser.new_context(viewport={"width": 1536, "height": 864})
+    context = browser.new_context(viewport={"width": 1450, "height": 720})
     page = context.new_page()
 
     yield page

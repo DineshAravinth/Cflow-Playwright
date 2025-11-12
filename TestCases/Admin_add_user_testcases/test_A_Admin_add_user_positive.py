@@ -3,7 +3,7 @@ from PageObjects.B_Admin_Add_user import Admin_Add_User
 from Utilities.BaseHelpers import BaseHelper
 
 
-class Test_002_Admin_Add_User_Positive_Cases:
+class Test_001_Admin_Add_User_Positive_Cases:
     """
     ✅ Test Suite: Admin Add User (Positive Scenarios)
     Covers:
@@ -37,7 +37,7 @@ class Test_002_Admin_Add_User_Positive_Cases:
         admin.enter_department("QA")
         admin.enter_email("dinesh123@yopmail.com")
         admin.enter_login_id()
-        admin.enter_password()
+        old_password = admin.enter_password()
         admin.enter_employee_number()
         admin.select_role(["User"])
         admin.enter_whatsapp_number(country_code="91", whatsapp_no="9988776655")
@@ -57,7 +57,13 @@ class Test_002_Admin_Add_User_Positive_Cases:
 
         print("\n✅ Test Completed: 'Add User with Active Status'\n")
 
-    # -------------------------------------------------------------------
+        # Step 6️⃣: Open user and reset password
+        admin.search_user(username)
+        admin.click_user_in_all_users(username)
+        page.wait_for_timeout(2000)
+        admin.reset_password_with_policy_check(old_password)
+
+
 
     def test_add_user_with_disabled_status(self, login):
         page = login
@@ -104,7 +110,7 @@ class Test_002_Admin_Add_User_Positive_Cases:
         print(f"🎯 Verified '{username}' appears under All Users with status: {status}")
 
         # Store username for next test
-        Test_002_Admin_Add_User_Positive_Cases.disabled_username = username
+        Test_001_Admin_Add_User_Positive_Cases.disabled_username = username
         print(f"\n📦 Stored disabled username for next test: {username}")
         print("\n➡ Next: Enable this user and verify under Active Users.\n")
 
@@ -115,7 +121,7 @@ class Test_002_Admin_Add_User_Positive_Cases:
         admin = Admin_Add_User(page)
         helper = BaseHelper(page)
 
-        username = Test_002_Admin_Add_User_Positive_Cases.disabled_username
+        username = Test_001_Admin_Add_User_Positive_Cases.disabled_username
 
         if not username:
             pytest.skip("⚠ No disabled user found from previous test — skipping this scenario.")
@@ -135,3 +141,10 @@ class Test_002_Admin_Add_User_Positive_Cases:
 
         print(f"🎯 Verified '{username}' now appears under Active Users list.")
         print("\n✅ Test Completed: 'Enable and Verify Active User'\n")
+
+
+
+
+
+
+
