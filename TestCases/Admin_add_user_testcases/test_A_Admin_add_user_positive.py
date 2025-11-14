@@ -1,10 +1,11 @@
 import pytest
-from PageObjects.B_Admin_Add_user import (
+from PageObjects.Admin_Add_User.B_Admin_Add_user import (
     AdminNavigationAndAddUser,
     UserVerificationAndDuplicateEmpNOLoginChecks,
     PasswordGenerationAndValidation,
     VerifyUserInEmployeesLookup,
-    ImportUserFromExcel
+    ImportUserFromExcel,
+    NewUserLoginVerification
 )
 from Utilities.BaseHelpers import BaseHelper
 
@@ -17,7 +18,7 @@ class Test_01AdminAddUserPositiveCases:
     created_login_id = None
     disabled_username = None      # for second user (disabled)
 
-    def test_add_user_with_active_status(self, login):
+    def test_TC01_add_user_with_active_status(self, login):
         page = login
         helper = BaseHelper(page)
         admin_nav = AdminNavigationAndAddUser(page, helper)
@@ -62,12 +63,13 @@ class Test_01AdminAddUserPositiveCases:
 
         # Verify in All Users
         admin_nav.click_All_Users_radio()
-        page.wait_for_timeout(3000)
-        admin_nav.search_user(username, timeout=2000)
+        page.wait_for_timeout(1500)
+        admin_nav.search_user(username, timeout=1000)
         user_verif.verify_user_in_all_users(username)
-        status = user_verif.verify_user_status_toggle(username)
+        user_verif.verify_user_status_toggle(username)
 
-    def test_verify_user_in_employee_lookup(self, login):
+
+    def test_TC02_verify_user_in_employee_lookup(self, login):
 
         page = login
         helper = BaseHelper(page)
@@ -101,7 +103,7 @@ class Test_01AdminAddUserPositiveCases:
         # Step 3️⃣ - Verify the latest employee record
         emp_lookup_verif.verify_latest_employee_record(expected_data)
 
-    def test_reset_password_of_created_user(self, login):
+    def test_TC03_reset_password_of_created_user(self, login):
 
         page = login
         helper = BaseHelper(page)
@@ -124,7 +126,7 @@ class Test_01AdminAddUserPositiveCases:
 
         password_util.reset_password_with_policy_check(old_password)
 
-    def test_add_user_with_disabled_status(self, login):
+    def test_TC04_add_user_with_disabled_status(self, login):
         page = login
         helper = BaseHelper(page)
         admin_nav = AdminNavigationAndAddUser(page, helper)
@@ -168,7 +170,7 @@ class Test_01AdminAddUserPositiveCases:
         # Store for next test
         Test_01AdminAddUserPositiveCases.disabled_username = username
 
-    def test_enable_and_verify_in_active_users_page(self, login):
+    def test_TC05_enable_and_verify_in_active_users_page(self, login):
         page = login
         helper = BaseHelper(page)
         admin_nav = AdminNavigationAndAddUser(page, helper)
@@ -193,7 +195,7 @@ class Test_01AdminAddUserPositiveCases:
         user_verif.verify_user_in_Active_List(username)
         print(f"🎯 Verified '{username}' now appears in Active Users page\n")
 
-    def test_verify_imported_users(self,login):
+    def test_TC06_verify_imported_users(self,login):
 
         # --- Test Data ---
         file_path = "TestData/User_Import.xlsx"

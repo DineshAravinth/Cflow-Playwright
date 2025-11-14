@@ -1,6 +1,6 @@
 import pytest
-from playwright.sync_api import sync_playwright
-from PageObjects.A_loginpage import LoginPage
+from playwright.sync_api import sync_playwright, Browser, Page
+from PageObjects.Login_Page.A_loginpage import LoginPage
 from Utilities.ReadProperties import ReadConfig
 from Utilities.BaseHelpers import BaseHelper
 from datetime import datetime
@@ -227,3 +227,34 @@ def pytest_sessionfinish(session, exitstatus):
 
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(cleaned_html)
+
+
+@pytest.fixture(scope="session")
+def playwright_instance():
+    """
+    Start a single Playwright instance for the entire test session.
+    """
+    with sync_playwright() as pw:
+        yield pw
+    # Playwright stops automatically when exiting the context
+
+
+@pytest.fixture(scope="session")
+def browser(playwright_instance) -> Browser:
+    """
+    Launch a persistent browser for the test session.
+    """
+    browser = playwright_instance.chromium.launch(headless=False)
+    yield browser
+    browser.close()
+
+
+@pytest.fixture
+def page(browser) -> Page:
+    """
+    Create a fresh page for each test. Uses the session-scoped browser.
+    """
+    context = browser.new_context(viewport={"width": 1470, "height": 720})
+    page = context.new_page()
+    yield page
+    context.close()

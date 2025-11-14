@@ -1,5 +1,4 @@
-import pytest
-from PageObjects.A_loginpage import LoginPage
+from PageObjects.Login_Page.A_loginpage import LoginPage
 
 class Test_001_Login:
     def test_homepage(self, login):

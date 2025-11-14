@@ -1,6 +1,4 @@
-import pytest
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-from PageObjects.B_Admin_Add_user import (
+from PageObjects.Admin_Add_User.B_Admin_Add_user import (
     AdminNavigationAndAddUser,
     UserVerificationAndDuplicateEmpNOLoginChecks,
     PasswordGenerationAndValidation,
@@ -13,7 +11,7 @@ from Locators.Locators_Admin_Add_User import Admin_Add_User_Locators
 
 class Test_002_Admin_Add_User_Negative_cases:
 
-    def test_add_user_with_duplicate_login_id(self, login):
+    def test_TC01_add_user_with_duplicate_login_id(self, login):
         """
         🚨 Negative Test: Verify 'Username Already Exist' toast for duplicate Login ID
         """
@@ -49,7 +47,7 @@ class Test_002_Admin_Add_User_Negative_cases:
         user_verif.verify_duplicate_login_toast("Username Already Exist")
 
 
-    def test_add_user_with_duplicate_emp_no(self, login):
+    def test_TC02_add_user_with_duplicate_emp_no(self, login):
         """
         🚨 Negative Test: Verify 'Employee No Already Exist' toast for duplicate Employee No
         """
@@ -85,7 +83,7 @@ class Test_002_Admin_Add_User_Negative_cases:
         # Verify duplicate Employee toast
         user_verif.verify_duplicate_emp_toast()
 
-    def test_add_user_with_invalid_passwords(self, login):
+    def test_TC03_add_user_with_invalid_passwords(self, login):
         """
         🚨 Negative Test: Dynamically test invalid passwords for each password rule.
         Save button must remain visible (form not submitted) for all invalid passwords.

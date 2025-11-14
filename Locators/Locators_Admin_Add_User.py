@@ -30,6 +30,7 @@ class Admin_Add_User_Locators:
         # Role selection dropdown to assign access level to the user
         self.dropdown_role = page.locator('ng-select[formcontrolname="role"]')
 
+        # To verify the selected role
         self.verify_role =page.locator("//ng-select[@formcontrolname='role']//span[contains(@class,'ng-value-label')]")
 
         # 🔹 Toggle / Checkbox
@@ -102,6 +103,7 @@ class Admin_Add_User_Locators:
         #Lookup page locators
         # Click the employees lookup
         self.click_employees_lookup = page.locator("//a[.//p[normalize-space(text())='Employees']]")
+
 
 
 

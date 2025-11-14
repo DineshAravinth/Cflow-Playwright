@@ -554,7 +554,6 @@ class UserVerificationAndDuplicateEmpNOLoginChecks:
             print(error_msg)
             raise AssertionError(error_msg)
 
-
 class PasswordGenerationAndValidation:
     """
     Handles password entry, policy validation, generation, and reset flows.
@@ -1191,3 +1190,48 @@ class ImportUserFromExcel:
         except Exception as e:
             screenshot_path = self.helper.take_screenshot("VerifyImportedUsersFailed")
             raise AssertionError(f"❌ Failed to verify imported users: {e}. Screenshot: {screenshot_path}")
+
+
+
+class NewUserLoginVerification:
+    """
+    Verifies that a newly created user can log in.
+    Uses BaseHelper for actions and verification.
+    """
+    def __init__(self, page: Page, login_url: str):
+        self.page = page
+        self.login_url = login_url
+        self.helper = BaseHelper(page)
+
+        # Locators
+        self.textbox_clientid_xpath = '//*[@id="client-id"]'
+        self.textbox_username_xpath = '//*[@id="username"]'
+        self.textbox_password_xpath = '//*[@id="password"]'
+        self.button_login_xpath = "//button[contains(.,'Login')]"
+
+    def verify_new_user_login(self, client_id: str, login_id: str, password: str, username: str):
+        print(f"\n🔐 Verifying login for new user: {username}")
+
+        # Navigate to login page
+        self.page.goto(self.login_url)
+
+        # Fill login form using BaseHelper
+        self.helper.enter_text(self.textbox_clientid_xpath, client_id, "Client ID")
+        self.helper.enter_text(self.textbox_username_xpath, login_id, "Login ID")
+        self.helper.enter_text(self.textbox_password_xpath, password, "Password")
+
+        # Click login
+        self.helper.click(self.button_login_xpath, "Login button")
+        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_timeout(5000)
+
+        # Validate login success
+        try:
+            expected_fragment = "/dashboard"
+            if expected_fragment.lower() not in self.page.url.lower():
+                raise AssertionError(f"Current URL: {self.page.url}")
+            print(f"✅ Login successful for user: {username}")
+
+        except Exception as e:
+            self.helper.take_screenshot(f"LoginFailed_{username}")
+            pytest.fail(f"❌ Login failed for user '{username}': {e}", pytrace=False)

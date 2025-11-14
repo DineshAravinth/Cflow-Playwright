@@ -1,0 +1,108 @@
+# Add User Test Cases – Automation
+----------------------------------
+
+This document contains all automated test scenarios for the **Add User** functionality,
+including positive and negative cases.
+
+------------------------------ Positive Cases Covered -----------------------------------------
+
+TC01 | test_TC01_add_user_with_active_status
+--------------------------------------------
+1.Log in to the application.
+2.Click on the Admin side navigation link.
+3.Click on the Add User button.
+4.Enter the user details.
+5.Click on the Save button.
+6.Click on the All Users button.
+7.Search the created User.
+8.Verify that the newly created user is visible in the All Users list.
+9.Check whether the user's status is Active
+
+
+TC02 | test_TC02_verify_user_in_employee_lookup
+-----------------------------------------------
+---continuing with TC01----
+1.Click on Lookup side navigation link.
+2.Click on the Employees Lookup
+3.Read the latest record in the Employees Lookup
+4.Verify the following details
+    a. Employee Number matches the created user.
+    b. Employee Name matches the created user.
+    c. Login ID matches the created user.
+    d. Email ID matches the created user.
+    e. Department matches the created user.
+
+TC03 | test_reset_password_of_created_user
+------------------------------------------
+---continuing with TC02----
+1.Click on the Admin side navigation link.
+2.Search for the created user.
+3.Click on the Reset Password link/tab.
+4.Validate using the old password.
+5.Generate a new password.
+6.Click on the Update button.
+7.Verify the success toast message is displayed.
+
+TC04 | test_add_user_with_disabled_status
+-----------------------------------------
+---continuing with TC03----
+1.Click on the Admin side navigation link.
+2.Click on the Add User button.
+3.Enter the user details.
+4.Disable the status toggle
+5.Click on the Save button.
+6.Click on the All Users button.
+7.Search the created User.
+8.Verify that the newly created user is visible in the All Users list.
+9.Check whether the user's status is Inactive
+
+
+TC05 | test_enable_and_verify_in_active_users_page
+--------------------------------------------------
+---continuing with TC04----
+1.Enable the user's status from Inactive to Active.
+2.Click on the Active Users button.
+3.Search for the user.
+4.Verify that the user appears on the Active Users page.
+
+TC06 | test_verify_imported_users
+---------------------------------
+1.Click on the Admin side navigation link.
+2.Click on the Import button.
+3.Upload the Excel/CSV file containing user data.
+4.Verify the imported users’ details:
+    Name
+    Login ID
+    Email
+    Role
+    WhatsApp
+    Employee Number
+    Department
+
+------------------------------ Negative Cases Covered -----------------------------------------
+
+TC01 | test_TC01_add_user_with_duplicate_login_id
+-------------------------------------------------
+1.Click on the Admin side navigation link.
+2.Click on the Add User button.
+3.Enter the user details.
+4.Enter the Duplicate login id
+5.Click on the save button
+6.Verify the toast message is displayed - Username Already Exist .
+
+TC02 | test_TC02_add_user_with_duplicate_emp_no
+-----------------------------------------------
+1.Refresh the page.
+2.Click on the Add User button.
+3.Enter the user details.
+4.Enter the Duplicate employee no
+5.Click on the save button
+6.Verify the toast message is displayed - Employee No Already Exist .
+
+TC03 | test_TC03_add_user_with_invalid_passwords
+------------------------------------------------
+1.Click on the Admin side navigation link.
+2.Click on the Add User button
+3.Enter the User details.
+4.Enter the invalid password according to password validation container
+5.Click on the save button
