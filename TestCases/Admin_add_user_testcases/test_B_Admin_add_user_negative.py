@@ -58,7 +58,6 @@ class Test_002_Admin_Add_User_Negative_cases:
         password_util = PasswordGenerationAndValidation(page, helper)
 
         print("🚨 Starting Negative Test: Duplicate Employee Number")
-        page.reload()
 
         # Navigate to Admin
         admin_nav.go_to_admin()
@@ -102,7 +101,6 @@ class Test_002_Admin_Add_User_Negative_cases:
         )
 
         print("🚨 Starting Negative Test: Invalid Password Validations")
-        page.reload()
         page.wait_for_timeout(1000)
 
         # Navigate to Admin page

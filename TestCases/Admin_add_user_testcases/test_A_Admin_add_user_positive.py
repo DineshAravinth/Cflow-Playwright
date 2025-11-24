@@ -1,4 +1,5 @@
 import pytest
+from playwright.sync_api import sync_playwright, Browser, Page
 from PageObjects.Admin_Add_User.B_Admin_Add_user import (
     AdminNavigationAndAddUser,
     UserVerificationAndDuplicateEmpNOLoginChecks,
@@ -8,6 +9,9 @@ from PageObjects.Admin_Add_User.B_Admin_Add_user import (
     NewUserLoginVerification
 )
 from Utilities.BaseHelpers import BaseHelper
+from Utilities.ReadProperties import ReadConfig
+
+
 
 
 class Test_01AdminAddUserPositiveCases:
@@ -134,7 +138,7 @@ class Test_01AdminAddUserPositiveCases:
         password_util = PasswordGenerationAndValidation(page, helper)
 
         print("\n🚀 Starting Test: Add User with Disabled Status")
-        page.reload()
+        # page.reload()
         page.wait_for_timeout(1000)
 
         # Navigate and add user
@@ -167,25 +171,7 @@ class Test_01AdminAddUserPositiveCases:
         user_verif.verify_user_in_all_users(username)
         user_verif.verify_user_status_toggle_disabled(username)
 
-        # Store for next test
-        Test_01AdminAddUserPositiveCases.disabled_username = username
-
-    def test_TC05_enable_and_verify_in_active_users_page(self, login):
-        page = login
-        helper = BaseHelper(page)
-        admin_nav = AdminNavigationAndAddUser(page, helper)
-        user_verif = UserVerificationAndDuplicateEmpNOLoginChecks(page, helper, admin_nav)
-
-        username = Test_01AdminAddUserPositiveCases.disabled_username
-        if not username:
-            pytest.skip("⚠ No disabled user from previous test — skipping.")
-
         print(f"\n🚀 Enabling user '{username}' and verifying in Active Users")
-
-        # Ensure toggle is disabled
-        user_verif.verify_user_status_toggle_disabled(username)
-
-        # Enable user
         user_verif.enable_user_toggle(username)
         print(f"✅ Enabled user '{username}' successfully")
 
@@ -195,7 +181,10 @@ class Test_01AdminAddUserPositiveCases:
         user_verif.verify_user_in_Active_List(username)
         print(f"🎯 Verified '{username}' now appears in Active Users page\n")
 
-    def test_TC06_verify_imported_users(self,login):
+        # Store for next test
+        Test_01AdminAddUserPositiveCases.disabled_username = username
+
+    def test_TC05_verify_imported_users(self,login):
 
         # --- Test Data ---
         file_path = "TestData/User_Import.xlsx"
@@ -224,4 +213,53 @@ class Test_01AdminAddUserPositiveCases:
         # --- Step 5️⃣: Verify imported users data from Excel ---
         import_user_verify.verify_imported_users_from_excel(file_path)
 
+    def test_TC06_verify_new_user_login_standalone(self, browser, page, login):
+        """🧪 Create a user → Close session → Verify login in fresh browser"""
+        page = login
+        helper = BaseHelper(page)
+        admin_nav = AdminNavigationAndAddUser(page, helper)
+        user_verif = UserVerificationAndDuplicateEmpNOLoginChecks(page, helper, admin_nav)
+        password_util = PasswordGenerationAndValidation(page, helper)
 
+        print("\n🚀 Starting Test: Standalone New User Login Verification")
+
+        # --------------- STEP 1: Create New User (using logged-in page) ---------------
+        admin_nav.go_to_admin()
+        admin_nav.click_add_user()
+
+        username = admin_nav.enter_name()
+        login_id = admin_nav.enter_login_id()
+        password = password_util.enter_password()
+        admin_nav.enter_department("QA")
+        admin_nav.enter_email("autotest@yopmail.com")
+        admin_nav.enter_employee_number()
+        admin_nav.select_role(["User"])
+        admin_nav.enable_send_welcome_mail()
+        admin_nav.click_save()
+        page.wait_for_timeout(2000)
+
+        # Verify user created
+        admin_nav.click_All_Users_radio()
+        admin_nav.search_user(username, timeout=2000)
+        user_verif.verify_user_in_all_users(username)
+
+        print(f"🎯 User created successfully: {username} | {login_id}")
+
+        # --------------- STEP 2: Open Fresh Browser to Verify Login ---------------
+        context2 = browser.new_context(viewport={"width": 1470, "height": 720})
+        page2 = context2.new_page()
+
+        login_verifier = NewUserLoginVerification(
+            page=page2,
+            login_url=ReadConfig.getURL("Test")
+        )
+
+        login_verifier.verify_new_user_login(
+            client_id=ReadConfig.getClientID("Test"),
+            login_id=login_id,
+            password=password,
+            username=username
+        )
+
+        context2.close()
+        print("✨ New user login verified successfully in standalone browser!")

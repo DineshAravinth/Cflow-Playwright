@@ -195,7 +195,7 @@ class AdminNavigationAndAddUser:
     # To Search User in Admin Page
     def search_user(self, username: str, timeout: int = 5000):
         try:
-            print(f"\n 🔍  Searching for user '{username}' in the Active Users page...")
+            print(f"🔍  Searching for user '{username}'...")
             self.locators.search_box.wait_for(state="visible", timeout=timeout)
             self.locators.search_box.fill("")  # clear old value
             self.locators.search_box.fill(username)  # type username
@@ -348,55 +348,51 @@ class UserVerificationAndDuplicateEmpNOLoginChecks:
             print(error_msg)
             raise AssertionError(error_msg)
 
-    # To verify that the user's status toggle is disabled
+    def toggle_user_status(self, username):
+        toggle_locator = self.page.locator(
+            f'//p[normalize-space()="{username}"]'
+        ).locator(
+            'xpath=ancestor::div[contains(@class,"admin-grid-item")]'
+        ).locator(
+            'label.switch span'
+        )
+        toggle_locator.click(force=True)
+
     def verify_user_status_toggle_disabled(self, username: str, description: str = "'User Status Toggle'",
                                            timeout: int = 10000):
-        """
-        Verify that the given user's status toggle is disabled (Inactive).
-        Fails the test if the toggle is enabled (Active).
-        """
-        print(f"🔍  Verifying that user status toggle for '{username}' under {description} is DISABLED...")
+        print(f"🔍 Verifying that user status toggle for '{username}' is DISABLED...")
         try:
-            toggle_locator = self.page.locator(
+            checkbox_locator = self.page.locator(
                 f'//p[normalize-space()="{username}"]/ancestor::div[contains(@class,"admin-grid-item")]//input[@aria-label="User Status"]'
             )
-            toggle_locator.wait_for(state="attached", timeout=timeout)
-            is_checked = toggle_locator.is_checked()
+
+            checkbox_locator.wait_for(state="attached", timeout=timeout)
+            is_checked = checkbox_locator.is_checked()
 
             if not is_checked:
-                print(f"✔ User '{username}' status is Disabled (toggle OFF).")
+                print(f"✔ User '{username}' is correctly disabled (toggle OFF).")
                 return "Disabled"
             else:
-                error_msg = f"❌ User '{username}' status is Active (toggle ON) — expected Disabled."
                 self.helper.take_screenshot(f"ToggleShouldBeDisabled_{username}")
-                print(error_msg)
-                raise AssertionError(error_msg)
+                raise AssertionError(
+                    f"❌ User '{username}' status is Active (toggle ON) — expected Disabled."
+                )
         except Exception as e:
             self.helper.take_screenshot(f"ToggleCheckFailed_{username}")
-            error_msg = f"❌ Test failed — Unable to verify toggle for '{username}': {e}"
-            print(error_msg)
-            raise AssertionError(error_msg)
+            raise AssertionError(f"❌ Unable to verify toggle state for '{username}': {e}")
 
-    # Enable a disabled user's toggle (make them Active) and verify it.
     def enable_user_toggle(self, username: str, description: str = "'User Status Toggle'", timeout: int = 10000):
-        """
-        Enable a disabled user's toggle (make them Active) and verify it.
-        Searches the user first to ensure visibility.
-        """
-        print(f"🟢 Enabling user status toggle for '{username}' under {description}...")
+        print(f"🟢 Enabling user status for '{username}'...")
 
         try:
-            # Step 1️⃣: Search for the user
-            print(f"🔍 Searching for user '{username}' before enabling toggle...")
+            # 🔍 Search user before interacting
             search_box = self.page.locator("#search-user-grid-records")
             search_box.wait_for(state="visible", timeout=5000)
-            search_box.fill("")  # clear old value
-            search_box.fill(username)  # type username
-            self.page.keyboard.press("Enter")  # trigger search
-            self.page.wait_for_timeout(1500)  # wait for list refresh
-            print(f"✅ User '{username}' search completed.")
+            search_box.fill("")
+            search_box.fill(username)
+            self.page.keyboard.press("Enter")
+            self.page.wait_for_timeout(1500)
 
-            # Step 2️⃣: Locate the visible toggle (span)
             toggle_slider = self.page.locator(
                 f'//p[normalize-space()="{username}"]/ancestor::div[contains(@class,"admin-grid-item")]'
                 f'//label[@class="switch"]/span[@class="slider"]'
@@ -409,53 +405,42 @@ class UserVerificationAndDuplicateEmpNOLoginChecks:
 
             toggle_slider.wait_for(state="visible", timeout=timeout)
 
-            # Step 3️⃣: Scroll into view
             try:
                 self.helper.scroll_to_label(toggle_slider, friendly_name=f"{username} Toggle")
-            except Exception as e:
-                print(f"⚠ Scroll attempt failed or element already in view: {e}")
+            except Exception:
+                print("⚠ Element already in view or scrolling not needed.")
 
-            # Step 4️⃣: Verify current state via checkbox
-            is_checked = toggle_checkbox.is_checked()
-            if is_checked:
-                print(f"ℹ User '{username}' toggle is already enabled.")
+            if toggle_checkbox.is_checked():
+                print(f"ℹ '{username}' is already enabled.")
                 return "Already Enabled"
 
-            # Step 5️⃣: Click the visible slider
             toggle_slider.click(force=True)
-            print(f"🖱 Clicked visible toggle (slider) for '{username}'...")
+            print(f"🖱 Clicked toggle for '{username}'...")
 
-            # ✅ Step 6️⃣: Handle the confirmation popup (Yes button)
+            # 📌 Handle confirmation popup if appears
             yes_button = self.page.locator(
-                '//div[contains(@class,"war-pop-footer")]//button[contains(@class,"button-danger") and normalize-space(text())="Yes"]'
+                '//button[contains(@class,"button-danger") and normalize-space(text())="Yes"]'
             )
 
             try:
                 yes_button.wait_for(state="visible", timeout=5000)
-                yes_button.scroll_into_view_if_needed()
                 yes_button.click()
-                print("🆗 Clicked 'Yes' button on confirmation popup.")
-            except Exception:
-                print("⚠ No confirmation popup detected, continuing...")
+                print("🆗 Clicked 'Yes' to confirm activation.")
+            except:
+                print("ℹ No confirmation popup — continuing...")
 
-            # Wait a moment for UI update
-            self.page.wait_for_timeout(1500)
+            self.page.wait_for_timeout(2000)
 
-            # Step 7️⃣: Confirm it’s enabled
             if toggle_checkbox.is_checked():
-                print(f"✅ User '{username}' successfully enabled (toggle ON).")
+                print(f"✅ '{username}' successfully enabled.")
                 return "Enabled"
             else:
                 self.helper.take_screenshot(f"EnableToggleFailed_{username}")
-                error_msg = f"❌ User '{username}' toggle did not enable properly."
-                print(error_msg)
-                raise AssertionError(error_msg)
+                raise AssertionError(f"❌ Toggle did not enable for '{username}'.")
 
         except Exception as e:
             self.helper.take_screenshot(f"EnableToggleFailed_{username}")
-            error_msg = f"❌ Test failed while enabling toggle for '{username}': {e}"
-            print(error_msg)
-            raise AssertionError(error_msg)
+            raise AssertionError(f"❌ Failed to enable toggle for '{username}': {e}")
 
     # To verify that the created user is displayed in the Active Users list.
     def verify_user_in_Active_List(self, username: str, timeout: int = 10000):
@@ -719,6 +704,7 @@ class PasswordGenerationAndValidation:
         print(f"🧪 Trying old password: {old_password}")
         self.enter_new_password(old_password)
         self.helper.click(self.btn_update, "Update button (old password)")
+        self.page.wait_for_timeout(3000)
 
         # Step 2a: Verify policy toast
         toast = self.page.locator("#toast-container div, #toast-container span").first

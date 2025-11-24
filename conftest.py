@@ -8,108 +8,85 @@ from py.xml import html
 import os
 import re
 
-# ---------- Global setup (manual control) ----------
-# Start Playwright once globally
-playwright = sync_playwright().start()
-browser = None
-context = None
-page = None
 
-
+# --------------------------
+# CLI Options
+# --------------------------
 def pytest_addoption(parser):
-    parser.addoption(
-        "--browser_name",
-        action="store",
-        default="chromium",
-        help="Browser to run tests on: chromium/firefox/webkit"
-    )
-    parser.addoption(
-        "--region",
-        action="store",
-        default="AP",
-        help="Region to run tests on: AP/ME/US/EU/Test"
-    )
-    parser.addoption(
-        "--keep-open",
-        action="store_true",
-        help="Keep browser open after tests"
-    )
+    parser.addoption("--browser_name", action="store", default="chromium",
+                     help="Browser: chromium/firefox/webkit")
+    parser.addoption("--region", action="store", default="AP",
+                     help="Region: AP/ME/US/EU/Test")
+    parser.addoption("--headless", action="store_true",
+                     help="Run in headless mode")
 
 
+# --------------------------
+# Playwright Instance
+# --------------------------
 @pytest.fixture(scope="session")
-def browser_page(request):
-    """Launch Playwright browser and keep it open after tests."""
-    global browser, context, page
+def playwright_instance():
+    with sync_playwright() as pw:
+        yield pw
 
+
+# --------------------------
+# Launch Fresh Browser per Test
+# --------------------------
+@pytest.fixture(scope="function")
+def browser(playwright_instance, request) -> Browser:
     browser_name = request.config.getoption("--browser_name")
-    region = request.config.getoption("--region")
-    keep_open = request.config.getoption("--keep-open")
-
-    print(f"\n🌍  Launching {browser_name} for region {region}")
+    headless = request.config.getoption("--headless")
 
     if browser_name.lower() == "chromium":
-        browser = playwright.chromium.launch(
-            headless=False,
-            args=["--start-maximized", "--window-position=0,0", "--window-size=1536,864"]
-        )
+        browser = playwright_instance.chromium.launch(headless=headless)
     elif browser_name.lower() == "firefox":
-        browser = playwright.firefox.launch(headless=False)
+        browser = playwright_instance.firefox.launch(headless=headless)
     elif browser_name.lower() == "webkit":
-        browser = playwright.webkit.launch(headless=False)
+        browser = playwright_instance.webkit.launch(headless=headless)
     else:
         raise ValueError(f"Unsupported browser: {browser_name}")
 
-    context = browser.new_context(viewport={"width": 1450, "height": 720})
+    yield browser
+    browser.close()
+
+
+# --------------------------
+# Fresh Page for Every Test
+# --------------------------
+@pytest.fixture(scope="function")
+def page(browser) -> Page:
+    context = browser.new_context(viewport={"width": 1470, "height": 720})
     page = context.new_page()
-
     yield page
-
-    # ✅ Keep browser open for debugging
-    if keep_open:
-        print("\n🧭 Browser will remain open for manual inspection...")
-        print("❗ Close it manually when done.")
-        input("Press ENTER here in terminal to close browser...")
-
-    # Only close if user didn’t request to keep open
-    else:
-        print("🧹 Closing browser automatically...")
-        browser.close()
-        playwright.stop()
+    context.close()
 
 
-@pytest.fixture(scope="session")
-def login(browser_page, request):
-    """Login once per session and return logged-in Playwright page."""
-    page = browser_page
+# --------------------------
+# Login Fixture (Optional)
+# --------------------------
+@pytest.fixture(scope="function")
+def login(page, request) -> Page:
     region = request.config.getoption("--region")
 
-    try:
-        url = ReadConfig.getURL(region)
-        client_id = ReadConfig.getClientID(region)
-        username = ReadConfig.getUsername(region)
-        password = ReadConfig.getPassword(region)
+    url = ReadConfig.getURL(region)
+    client_id = ReadConfig.getClientID(region)
+    username = ReadConfig.getUsername(region)
+    password = ReadConfig.getPassword(region)
 
-        print(f"➡️  Navigating to URL: {url} for region: {region}")
-        page.goto(url)
+    print(f"\n➡️ Launching URL: {url} ({region})")
+    page.goto(url)
 
-        # Perform login
-        lp = LoginPage(page)
-        lp.setClientid(client_id)
-        lp.setUserName(username)
-        lp.setPassword(password)
-        lp.clickLogin()
+    lp = LoginPage(page)
+    lp.setClientid(client_id)
+    lp.setUserName(username)
+    lp.setPassword(password)
+    lp.clickLogin()
 
-        # Verify post-login page URL
-        helper = BaseHelper(page)
-        expected_url_fragment = "/dashboard"  # Replace with your actual post-login URL fragment
-        helper.verify_page_url(expected_url_fragment,description="Dashboard")
-
-    except Exception as e:
-        print(f"❌ Login failed: {e}")
-        raise e  # Fail the test immediately if login or URL verification fails
+    helper = BaseHelper(page)
+    helper.verify_page_url("/dashboard", description="Dashboard")
 
     yield page
-
 
 
 # ------------------------------
@@ -229,32 +206,3 @@ def pytest_sessionfinish(session, exitstatus):
             f.write(cleaned_html)
 
 
-@pytest.fixture(scope="session")
-def playwright_instance():
-    """
-    Start a single Playwright instance for the entire test session.
-    """
-    with sync_playwright() as pw:
-        yield pw
-    # Playwright stops automatically when exiting the context
-
-
-@pytest.fixture(scope="session")
-def browser(playwright_instance) -> Browser:
-    """
-    Launch a persistent browser for the test session.
-    """
-    browser = playwright_instance.chromium.launch(headless=False)
-    yield browser
-    browser.close()
-
-
-@pytest.fixture
-def page(browser) -> Page:
-    """
-    Create a fresh page for each test. Uses the session-scoped browser.
-    """
-    context = browser.new_context(viewport={"width": 1470, "height": 720})
-    page = context.new_page()
-    yield page
-    context.close()

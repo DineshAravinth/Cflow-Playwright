@@ -10,7 +10,7 @@ class Common_Locators:
         # 🔹 Navigation Menu
         # Sidebar link to open the Admin section
         self.side_nav_admin = page.get_by_role("link", name="Admin")
-
+        # Sidebar link to open the Lookups section
         self.side_nav_lookup = page.get_by_role("link", name="Lookups")
 
 

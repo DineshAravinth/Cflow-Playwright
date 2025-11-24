@@ -55,17 +55,13 @@ TC04 | test_add_user_with_disabled_status
 7.Search the created User.
 8.Verify that the newly created user is visible in the All Users list.
 9.Check whether the user's status is Inactive
+10.Enable the user's status from Inactive to Active.
+11.Click on the Active Users button.
+12.Search for the user.
+13.Verify that the user appears on the Active Users page.
 
 
-TC05 | test_enable_and_verify_in_active_users_page
---------------------------------------------------
----continuing with TC04----
-1.Enable the user's status from Inactive to Active.
-2.Click on the Active Users button.
-3.Search for the user.
-4.Verify that the user appears on the Active Users page.
-
-TC06 | test_verify_imported_users
+TC05 | test_verify_imported_users
 ---------------------------------
 1.Click on the Admin side navigation link.
 2.Click on the Import button.
@@ -79,7 +75,7 @@ TC06 | test_verify_imported_users
     Employee Number
     Department
 
-TC07 | test_TC07_verify_new_user_login_standalone
+TC06 | test_TC07_verify_new_user_login_standalone
 -------------------------------------------------
 1.Log in to the application.
 2.Click on the Admin side navigation link.
