@@ -22,6 +22,8 @@ class Test_01AdminAddUserPositiveCases:
     created_login_id = None
     disabled_username = None      # for second user (disabled)
 
+
+    @pytest.mark.order(1)
     def test_TC01_add_user_with_active_status(self, login):
         page = login
         helper = BaseHelper(page)
@@ -73,6 +75,7 @@ class Test_01AdminAddUserPositiveCases:
         user_verif.verify_user_status_toggle(username)
 
 
+    @pytest.mark.order(2)
     def test_TC02_verify_user_in_employee_lookup(self, login):
 
         page = login
@@ -107,6 +110,8 @@ class Test_01AdminAddUserPositiveCases:
         # Step 3️⃣ - Verify the latest employee record
         emp_lookup_verif.verify_latest_employee_record(expected_data)
 
+
+    @pytest.mark.order(3)
     def test_TC03_reset_password_of_created_user(self, login):
 
         page = login
@@ -129,6 +134,7 @@ class Test_01AdminAddUserPositiveCases:
         page.wait_for_timeout(2000)
 
         password_util.reset_password_with_policy_check(old_password)
+
 
     def test_TC04_add_user_with_disabled_status(self, login):
         page = login
@@ -184,6 +190,7 @@ class Test_01AdminAddUserPositiveCases:
         # Store for next test
         Test_01AdminAddUserPositiveCases.disabled_username = username
 
+
     def test_TC05_verify_imported_users(self,login):
 
         # --- Test Data ---
@@ -212,6 +219,7 @@ class Test_01AdminAddUserPositiveCases:
 
         # --- Step 5️⃣: Verify imported users data from Excel ---
         import_user_verify.verify_imported_users_from_excel(file_path)
+
 
     def test_TC06_verify_new_user_login_standalone(self, browser, page, login):
         """🧪 Create a user → Close session → Verify login in fresh browser"""

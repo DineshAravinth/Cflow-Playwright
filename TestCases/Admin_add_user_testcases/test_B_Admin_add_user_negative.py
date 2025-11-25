@@ -1,3 +1,4 @@
+import pytest
 from PageObjects.Admin_Add_User.B_Admin_Add_user import (
     AdminNavigationAndAddUser,
     UserVerificationAndDuplicateEmpNOLoginChecks,
@@ -10,6 +11,7 @@ from Locators.Locators_Admin_Add_User import Admin_Add_User_Locators
 
 
 class Test_002_Admin_Add_User_Negative_cases:
+
 
     def test_TC01_add_user_with_duplicate_login_id(self, login):
         """
@@ -81,6 +83,7 @@ class Test_002_Admin_Add_User_Negative_cases:
 
         # Verify duplicate Employee toast
         user_verif.verify_duplicate_emp_toast()
+
 
     def test_TC03_add_user_with_invalid_passwords(self, login):
         """

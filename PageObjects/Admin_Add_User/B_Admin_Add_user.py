@@ -75,7 +75,7 @@ class AdminNavigationAndAddUser:
     # Generate an Employee Number
     @staticmethod
     def random_employee_number():
-        return str(random.randint(1000, 9999))
+        return str(random.randint(10000, 99999))
 
     def enter_employee_number(self, emp_no=None):
         if not emp_no:
